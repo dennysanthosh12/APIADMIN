@@ -1,0 +1,17 @@
+{"properties": [
+  {
+    "name": "app.SECRET_KEY",
+    "type": "java.lang.String",
+    "description": "A description for 'app.SECRET_KEY'"
+  },
+  {
+    "name": "app.rsa.private-key",
+    "type": "java.lang.String",
+    "description": "A description for 'app.rsa.private-key'"
+  },
+  {
+    "name": "app.rsa.public-key",
+    "type": "java.lang.String",
+    "description": "A description for 'app.rsa.public-key'"
+  }
+]}

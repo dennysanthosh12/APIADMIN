@@ -2,15 +2,16 @@ package com.TCS.EIS.apiadmin.Utility;
 
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
-import io.jsonwebtoken.io.Decoders;
+import jakarta.annotation.PostConstruct;
+
+import org.springframework.core.io.Resource;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Service;
-import java.security.KeyFactory;
+import java.security.KeyStore;
 import java.security.PrivateKey;
 import java.security.PublicKey;
-import java.security.spec.PKCS8EncodedKeySpec;
-import java.security.spec.X509EncodedKeySpec;
+import java.security.cert.Certificate;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
@@ -18,16 +19,46 @@ import java.util.function.Function;
 
 @Service
 public class JwtService {
-
-	@Value("${app.SECRET_KEY}")
-	private static String SECRET_KEY;
 	
-	@Value("${app.rsa.private-key}")
-    private String privateKeyString;
+	@Value("${jwt.keystore.location}")
+    private Resource keystore;
 
-    @Value("${app.rsa.public-key}")
-    private String publicKeyString;
+    @Value("${jwt.keystore.password}")
+    private String keystorePassword;
+
+    @Value("${jwt.keystore.alias}")
+    private String keyAlias;
+
+    @Value("${jwt.keystore.key-password}")
+    private String keyPassword;
+
+    @Value("${jwt.expiration-ms}")
+    private long jwtExpiration;
+
+    private PrivateKey privateKey;
+    private PublicKey publicKey;
 	
+	
+    
+    @PostConstruct
+    public void loadKeys() {
+        try {
+            KeyStore keyStore = KeyStore.getInstance("PKCS12");
+            keyStore.load(keystore.getInputStream(), keystorePassword.toCharArray());
+
+            this.privateKey = (PrivateKey) keyStore.getKey(
+                    keyAlias,
+                    keyPassword.toCharArray()
+            );
+
+            Certificate certificate = keyStore.getCertificate(keyAlias);
+            this.publicKey = certificate.getPublicKey();
+
+        } catch (Exception e) {
+            throw new IllegalStateException("Failed to load keys from keystore", e);
+        }
+    }
+
 
 	
 	public String extractUsername(String token) {
@@ -51,7 +82,7 @@ public class JwtService {
                 .subject(userDetails.getUsername())
                 .issuedAt(new Date(System.currentTimeMillis()))
                 .expiration(new Date(System.currentTimeMillis() + 1000 * 60 * 24))
-                .signWith(getPrivateKey())// 24 hours
+                .signWith(privateKey)// 24 hours
                 .compact();
     }
 
@@ -70,32 +101,12 @@ public class JwtService {
 
     private Claims extractAllClaims(String token) {
     	return Jwts.parser() // Changed from parserBuilder()
-                .verifyWith(getPublicKey()) // Use verifyWith() instead of setSigningKey()
+                .verifyWith(publicKey) // Use verifyWith() instead of setSigningKey()
                 .build()
                 .parseSignedClaims(token) // Use parseSignedClaims() instead of parseClaimsJws()
                 .getPayload(); 
     }
 
     
-    private PublicKey getPublicKey() {
-        try {
-            byte[] keyBytes = Decoders.BASE64.decode(publicKeyString);
-            X509EncodedKeySpec spec = new X509EncodedKeySpec(keyBytes);
-            KeyFactory kf = KeyFactory.getInstance("RSA");
-            return kf.generatePublic(spec);
-        } catch (Exception e) {
-            throw new RuntimeException("Could not reconstruct Public Key", e);
-        }
-    }
-    
-    private PrivateKey getPrivateKey() {
-        try {
-            byte[] keyBytes = Decoders.BASE64.decode(privateKeyString);
-            PKCS8EncodedKeySpec spec = new PKCS8EncodedKeySpec(keyBytes);
-            KeyFactory kf = KeyFactory.getInstance("RSA");
-            return kf.generatePrivate(spec);
-        } catch (Exception e) {
-            throw new RuntimeException("Could not reconstruct Private Key", e);
-        }
-    }
+
 }

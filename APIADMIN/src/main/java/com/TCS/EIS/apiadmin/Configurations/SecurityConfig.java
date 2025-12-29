@@ -30,7 +30,7 @@ public class SecurityConfig {
         http
             .csrf(AbstractHttpConfigurer::disable) // Disable for REST APIs
             .authorizeHttpRequests(auth -> auth
-                .requestMatchers("/api/v1/auth/**").permitAll() // Public endpoints
+                .requestMatchers("/api/Auth/**").permitAll() // Public endpoints
                 .requestMatchers("/api/v1/admin/**").hasRole("ADMIN") // RBAC
                 .requestMatchers("/api/v1/user/**").hasAnyRole("USER", "ADMIN")
                 .anyRequest().authenticated()
